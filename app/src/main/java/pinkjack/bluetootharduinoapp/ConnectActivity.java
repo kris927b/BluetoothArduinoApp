@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -155,6 +156,9 @@ public class ConnectActivity extends AppCompatActivity {
     }
 
     public void SendInfo() {
+        TelephonyManager telephonyManager = (TelephonyManager)getSystemService(ConnectActivity.this.TELEPHONY_SERVICE);
+        String ID = telephonyManager.getDeviceId();
+        Log.d("Device ID", ID);
         text = edt1.getText().toString() + edt2.getText().toString() + edt3.getText().toString() + edt4.getText().toString();
         Log.d("text", text);
 
@@ -209,6 +213,7 @@ public class ConnectActivity extends AppCompatActivity {
         intent = new Intent(this, Second_activity.class);
         startActivity(intent);
         */
+
     }
 
     @Override
