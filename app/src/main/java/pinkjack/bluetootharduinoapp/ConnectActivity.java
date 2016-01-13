@@ -22,6 +22,7 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ public class ConnectActivity extends AppCompatActivity {
     OutputStream BTOutput;
     InputStream BTInput;
     ProgressDialog progressDialog;
+    Thread connectThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -175,46 +177,51 @@ public class ConnectActivity extends AppCompatActivity {
     }
 
     public void connectBT() {
-        if(BTDevice != null) {
-            try {
-                UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
-                BTSocket = BTDevice.createRfcommSocketToServiceRecord(uuid);
-            } catch (IOException e) {
-                Log.d("Exception", e.getMessage());
-            }
+        connectThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                bluetoothAdapter.cancelDiscovery();
+                if (BTDevice != null) {
+                    try {
+                        BTSocket = BTDevice.createRfcommSocketToServiceRecord(UUID.randomUUID());
+                    } catch (IOException e) {
+                        Log.d("Exception", e.getMessage());
+                    }
+                    
+                    try {
+                        BTSocket.connect();
+                    } catch (IOException connectException) {
+                        Log.d("Connect Exception", connectException.getMessage());
+                        try {
+                            BTSocket.close();
+                        } catch (IOException closeException) {
+                            Log.d("Close Exception", closeException.getMessage());
+                        }
+                    }
 
-            bluetoothAdapter.cancelDiscovery();
-            try {
-                BTSocket.connect();
-            } catch (IOException connectException) {
-                Log.d("Connect Exception", connectException.getMessage());
-                try {
-                    BTSocket.close();
-                } catch (IOException closeException) {
-                    Log.d("Close Exception", closeException.getMessage());
+                    try {
+                        BTOutput = BTSocket.getOutputStream();
+                        BTInput = BTSocket.getInputStream();
+                    } catch (IOException OutputInput) {
+                        Log.d("OutputInput Exception", OutputInput.getMessage());
+                    }
+
+                    SendInfo();
+                } else {
+                    new AlertDialog.Builder(ConnectActivity.this)
+                            .setTitle("Bluetooth")
+                            .setMessage("Sorry!")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    ConnectActivity.this.finish();
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
                 }
             }
-
-            try {
-                BTOutput = BTSocket.getOutputStream();
-                BTInput = BTSocket.getInputStream();
-            } catch (IOException OutputInput) {
-                Log.d("OutputInput Exception", OutputInput.getMessage());
-            }
-
-            SendInfo();
-        } else {
-            new AlertDialog.Builder(this)
-                    .setTitle("Bluetooth")
-                    .setMessage("Sorry!")
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            ConnectActivity.this.finish();
-                        }
-                    })
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
-        }
+        });
+        connectThread.start();
     }
 
     public void SendInfo() {
