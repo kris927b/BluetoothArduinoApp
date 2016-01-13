@@ -156,6 +156,7 @@ public class ConnectActivity extends AppCompatActivity {
                         findBT();
                         connectBT();
                         SendInfo();
+                        listenforResponse();
                     } catch (IOException ex) {
                         Log.d("Connect problem", ex.getMessage());
                     }
@@ -191,16 +192,10 @@ public class ConnectActivity extends AppCompatActivity {
         listenforResponse();
     }
 
-    public void SendInfo() {
+    public void SendInfo() throws IOException {
         text = edt1.getText().toString() + edt2.getText().toString() + edt3.getText().toString() + edt4.getText().toString();
         Log.d("text", text);
-
-            try {
-                BTOutput.write(text.getBytes());
-                listenforResponse();
-            } catch (IOException write) {
-                Log.d("Write exception", write.getMessage());
-            }
+        BTOutput.write(text.getBytes());
         }
 
     public void listenforResponse() {
