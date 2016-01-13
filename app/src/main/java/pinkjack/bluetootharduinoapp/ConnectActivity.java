@@ -163,22 +163,7 @@ public class ConnectActivity extends AppCompatActivity {
         });
     }
 
-<<<<<<< HEAD
-    public void SendInfo() {
-        TelephonyManager telephonyManager = (TelephonyManager)getSystemService(ConnectActivity.this.TELEPHONY_SERVICE);
-        String ID = telephonyManager.getDeviceId();
-        Log.d("Device ID", ID);
-        text = edt1.getText().toString() + edt2.getText().toString() + edt3.getText().toString() + edt4.getText().toString();
-        Log.d("text", text);
-
-        final ProgressDialog progressDialog = new ProgressDialog(ConnectActivity.this, R.style.AppTheme_Dark_Dialog);
-        progressDialog.setIndeterminate(true);
-        progressDialog.setMessage("Validating...");
-        progressDialog.show();
-
-=======
     public void findBT() {
->>>>>>> origin/master
         Set<BluetoothDevice> pairedDevice = bluetoothAdapter.getBondedDevices();
         if (pairedDevice.size() > 0) {
             for (BluetoothDevice device : pairedDevice) {
@@ -269,16 +254,12 @@ public class ConnectActivity extends AppCompatActivity {
         } catch (IOException close) {
             Log.d("Close", close.getMessage());
         }
-<<<<<<< HEAD
 
         /*
         Intent intent;
         intent = new Intent(this, Second_activity.class);
         startActivity(intent);
         */
-
-=======
->>>>>>> origin/master
     }
 
     @Override
