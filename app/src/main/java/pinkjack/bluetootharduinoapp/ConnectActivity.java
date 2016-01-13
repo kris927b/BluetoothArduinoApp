@@ -148,11 +148,17 @@ public class ConnectActivity extends AppCompatActivity {
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (edt4.getText().length() == 1) {
                     edt4.clearFocus();
-                    findBT();
                     progressDialog = new ProgressDialog(ConnectActivity.this, R.style.AppTheme_Dark_Dialog);
                     progressDialog.setIndeterminate(true);
                     progressDialog.setMessage("Validating...");
                     progressDialog.show();
+                    try {
+                        findBT();
+                        connectBT();
+                        SendInfo();
+                    } catch (IOException ex) {
+                        Log.d("Connect problem", ex.getMessage());
+                    }
                 }
             }
 
@@ -169,7 +175,6 @@ public class ConnectActivity extends AppCompatActivity {
             for (BluetoothDevice device : pairedDevice) {
                 if (device.getName().equals("HC-06")) {
                     BTDevice = device;
-                    connectBT();
                     Toast.makeText(getApplicationContext(),"BTDevice Found", Toast.LENGTH_LONG).show();
                     break;
                 }
@@ -177,52 +182,13 @@ public class ConnectActivity extends AppCompatActivity {
         }
     }
 
-    public void connectBT() {
-        connectThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                bluetoothAdapter.cancelDiscovery();
-                if (BTDevice != null) {
-                    try {
-                        BTSocket = BTDevice.createRfcommSocketToServiceRecord(UUID.randomUUID());
-                    } catch (IOException e) {
-                        Log.d("Exception", e.getMessage());
-                    }
-
-                    try {
-                        BTSocket.connect();
-                    } catch (IOException connectException) {
-                        Log.d("Connect Exception", connectException.getMessage());
-                        try {
-                            BTSocket.close();
-                        } catch (IOException closeException) {
-                            Log.d("Close Exception", closeException.getMessage());
-                        }
-                    }
-
-                    try {
-                        BTOutput = BTSocket.getOutputStream();
-                        BTInput = BTSocket.getInputStream();
-                    } catch (IOException OutputInput) {
-                        Log.d("OutputInput Exception", OutputInput.getMessage());
-                    }
-
-                    SendInfo();
-                } else {
-                    new AlertDialog.Builder(ConnectActivity.this)
-                            .setTitle("Bluetooth")
-                            .setMessage("Sorry!")
-                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int which) {
-                                    ConnectActivity.this.finish();
-                                }
-                            })
-                            .setIcon(android.R.drawable.ic_dialog_alert)
-                            .show();
-                }
-            }
-        });
-        connectThread.start();
+    void connectBT() throws IOException {
+        UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); //Standard //SerialPortService ID
+        BTSocket = BTDevice.createRfcommSocketToServiceRecord(uuid);
+        BTSocket.connect();
+        BTOutput = BTSocket.getOutputStream();
+        BTInput = BTSocket.getInputStream();
+        listenforResponse();
     }
 
     public void SendInfo() {
