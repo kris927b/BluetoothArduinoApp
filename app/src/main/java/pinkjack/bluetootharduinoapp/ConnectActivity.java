@@ -187,7 +187,7 @@ public class ConnectActivity extends AppCompatActivity {
                     } catch (IOException e) {
                         Log.d("Exception", e.getMessage());
                     }
-                    
+
                     try {
                         BTSocket.connect();
                     } catch (IOException connectException) {
