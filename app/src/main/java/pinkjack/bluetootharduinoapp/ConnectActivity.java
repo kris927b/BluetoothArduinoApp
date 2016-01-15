@@ -9,7 +9,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.telephony.TelephonyManager;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -23,8 +22,11 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 public class ConnectActivity extends AppCompatActivity {
@@ -40,7 +42,8 @@ public class ConnectActivity extends AppCompatActivity {
     OutputStream BTOutput;
     InputStream BTInput;
     ProgressDialog progressDialog;
-    Thread connectThread;
+    AlertDialog alert;
+    int lockoutTime = 30000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,14 +155,7 @@ public class ConnectActivity extends AppCompatActivity {
                     progressDialog.setIndeterminate(true);
                     progressDialog.setMessage("Validating...");
                     progressDialog.show();
-                    try {
-                        findBT();
-                        connectBT();
-                        SendInfo();
-                        listenforResponse();
-                    } catch (IOException ex) {
-                        Log.d("Connect problem", ex.getMessage());
-                    }
+                    findBT();
                 }
             }
 
@@ -177,29 +173,135 @@ public class ConnectActivity extends AppCompatActivity {
                 if (device.getName().equals("HC-06")) {
                     BTDevice = device;
                     Toast.makeText(getApplicationContext(),"BTDevice Found", Toast.LENGTH_LONG).show();
+                    new ConnectThread().run(BTDevice);
                     break;
                 }
             }
         }
     }
 
-    void connectBT() throws IOException {
-        UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); //Standard //SerialPortService ID
-        BTSocket = BTDevice.createRfcommSocketToServiceRecord(uuid);
-        BTSocket.connect();
-        BTOutput = BTSocket.getOutputStream();
-        BTInput = BTSocket.getInputStream();
-        listenforResponse();
+    private class ConnectThread extends Thread {
+        BluetoothSocket tmp;
+
+        public void run(BluetoothDevice device) {
+            Log.d("Yes", "Yes");
+            BTDevice = device;
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+
+                    try {
+                        UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
+                        tmp = BTDevice.createInsecureRfcommSocketToServiceRecord(uuid);
+                        // Cancel discovery because it will slow down the connection
+                        bluetoothAdapter.cancelDiscovery();
+                        Class<?> clazz = tmp.getRemoteDevice().getClass();
+                        Class<?>[] paramTypes = new Class<?>[]{Integer.TYPE};
+                        try {
+                            Method m = clazz.getMethod("createRfcommSocket", paramTypes);
+                            Object[] params = new Object[]{
+                                    Integer.valueOf(1)
+                            };
+                            BTSocket = (BluetoothSocket) m.invoke(tmp.getRemoteDevice(), params);
+                            BTSocket.connect();
+                        } catch (NoSuchMethodException ex1) {
+                            Log.d("Method", ex1.getMessage());
+                        } catch (IllegalAccessException ex2) {
+                            Log.d("Access", ex2.getMessage());
+                        } catch (InvocationTargetException ex3) {
+                            Log.d("Invocation", ex3.getMessage());
+                        }
+                        Log.d("Yes", "Yes Connect");
+                    } catch (IOException connectException) {
+                        Log.d("Connect", connectException.getMessage());
+                        try {
+                            BTSocket.close();
+                        } catch (IOException closeException) {
+                            Log.d("Closeafterconnectproblm", closeException.getMessage());
+                        }
+                    }
+                    try {
+                        SendInfo();
+                    } catch (IOException ex) {
+                        Log.d("NO", ex.getMessage());
+                    }
+                }
+            }).start();
+        }
     }
 
     public void SendInfo() throws IOException {
+        BTOutput = BTSocket.getOutputStream();
         text = edt1.getText().toString() + edt2.getText().toString() + edt3.getText().toString() + edt4.getText().toString();
         Log.d("text", text);
         BTOutput.write(text.getBytes());
+        listenforResponse();
         }
 
     public void listenforResponse() {
-        closeBTconnection();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                byte[] buffer = new byte[1024];
+                int bytes;
+                String response = null;
+                try {
+                    BTInput = BTSocket.getInputStream();
+                } catch (IOException inex) {
+                    Log.d("Input", inex.getMessage());
+                }
+                while (true) {
+                    try {
+                        bytes = BTInput.read(buffer);
+                        response = new String(buffer, 0, bytes);
+                    } catch (IOException readex) {
+                        Log.d("Read", readex.getMessage());
+                        break;
+                    }
+                }
+
+                switch (response) {
+                    case "true":
+                        closeBTconnection();
+                        break;
+                    case "false":
+                        setLockOut();
+                        break;
+                }
+            }
+        }).start();
+    }
+
+    public void setLockOut() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                alert = new AlertDialog.Builder(ConnectActivity.this)
+                        .setTitle("Wrong Pin!")
+                        .setMessage("Your alarm system will be locked in " + lockoutTime / 1000 + " sec")
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
+                Timer timer = new Timer();
+                timer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        for (int Time = lockoutTime; lockoutTime >= 0; Time--) {
+                            if (Time == 0) {
+                                alert.dismiss();
+                                edt1.setText("");
+                                edt2.setText("");
+                                edt3.setText("");
+                                edt4.setText("");
+                                break;
+                            } else {
+                                alert.setMessage("Your alarm system will be locked in " + Time + " sec");
+                            }
+                        }
+                    }
+                }, 0, 1000);
+            }
+        }).start();
     }
 
     public void closeBTconnection() {
@@ -215,12 +317,6 @@ public class ConnectActivity extends AppCompatActivity {
         } catch (IOException close) {
             Log.d("Close", close.getMessage());
         }
-
-        /*
-        Intent intent;
-        intent = new Intent(this, Second_activity.class);
-        startActivity(intent);
-        */
     }
 
     @Override
@@ -245,3 +341,4 @@ public class ConnectActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 }
+
